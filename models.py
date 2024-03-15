@@ -3,5 +3,5 @@ from fastapi import FastAPI, UploadFile, File
 from typing import List
 
 class FileAndList(BaseModel):
-    file: UploadFile
-    stopwords: List[str]
+    file: str
+    stopwords: str

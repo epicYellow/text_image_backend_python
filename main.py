@@ -1,13 +1,29 @@
-import io
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.responses import FileResponse
-from wordcloud import WordCloud
+from fastapi import Response
+from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
-import matplotlib.pyplot as plt
+from functions import create_plot_image, get_words_from_messages, parse_messages
 import models
-import re
+import base64
 
 app = FastAPI()
+
+origins = [
+    "http://localhost.tiangolo.com",
+    "https://localhost.tiangolo.com",
+    "http://localhost:3000",
+    "http://localhost",
+    "http://localhost:8000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def read_root():
@@ -16,65 +32,20 @@ def read_root():
 
 @app.post("/api/createImage")
 async def create_image(payload: models.FileAndList):
-    print('lets go')
-    file = payload.file
+    file = base64.b64decode(payload.file)
+
+    decoded_string = file.decode("utf-8")
     stopwords = payload.stopwords
-    
-    lines = []
 
-    dates = []
-    times = []
-    names = []
-    messages = []
+    df = pd.DataFrame(parse_messages(decoded_string))
 
-    pattern = r'[(\d{4}/\d{2}/\d{2}), (\d{2}:\d{2}:\d{2})] (.+?): (.*)'
-
-    if not file.filename.endswith(".txt"):
-        raise HTTPException(status_code=400, detail="Only TXT files allowed")
-
-    with open(file, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-
-    for line in lines:
-        match = re.match(pattern, line)
-        if match:
-            date, time, name, message = match.groups()
-            dates.append(date)
-            times.append(time)
-            names.append(name)
-            messages.append(message)
-    
-    data = {'Date': dates, 'Time': times, 'Name': names, 'Message': messages}
-    df = pd.DataFrame(data)
-
-    message_words = []
     flat_list = df['Message']
+    word_list = stopwords.split(', ')
+    lowercase_stopwords = [word.lower() for word in word_list]
+    print(lowercase_stopwords[:100])
+    filtered_words = [word.lower() for word in get_words_from_messages(flat_list) if word not in lowercase_stopwords]
+    print(filtered_words[:100])
 
-    for word in flat_list:
-        countWords = len(word.split())
-        if countWords != 1:
-            indwords = word.split()
-            for indword in indwords:
-                if indword not in stopwords:
-                    message_words.append(indword)
-        else:
-            if word not in stopwords:
-                message_words.append(word)
+    str_ = ' '.join(filtered_words)
 
-    str_ = ''.join(message_words)
-
-    word_cloud = WordCloud(background_color='white', max_words=500, colormap='winter')
-    word_cloud.generate(str_)
-
-    buffer = io.BytesIO()
-
-    plt.figure(figsize=[16,8])
-    plt.imshow(word_cloud, interpolation='bilinear')
-    plt.axis('off')
-    plt.savefig(buffer, format='png')
-
-    buffer.seek(0)
-
-    plt.close()
-
-    return FileResponse(buffer, media_type='image/png')
+    return Response(content=create_plot_image(str_.capitalize(), None, size=[32,16], max_words=1000, colors='autumn'), media_type="application/json")
