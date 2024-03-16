@@ -48,4 +48,4 @@ async def create_image(payload: models.FileAndList):
 
     str_ = ' '.join(filtered_words)
 
-    return Response(content=create_plot_image(str_.capitalize(), None, size=[32,16], max_words=1000, colors='autumn'), media_type="application/json")
+    return Response(content=create_plot_image(str_.capitalize(), None, size=[32,16], max_words=1000, colors='YlOrRd'), media_type="application/json")
