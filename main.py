@@ -4,7 +4,9 @@ from fastapi import Response
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 from functions import create_plot_image, get_words_from_messages, parse_messages
+from PIL import Image
 import models
+import io, base64
 import base64
 
 app = FastAPI()
@@ -29,23 +31,25 @@ app.add_middleware(
 def read_root():
     return {"Hello": "World"}
 
-
 @app.post("/api/createImage")
 async def create_image(payload: models.FileAndList):
-    file = base64.b64decode(payload.file)
+    textfile_64 = base64.b64decode(payload.textfile64)
+    imagefile_64 = base64.b64decode(payload.imagefile64)
+    print('starting')
 
-    decoded_string = file.decode("utf-8")
+    decoded_textfile = textfile_64.decode("utf-8")
+
     stopwords = payload.stopwords
 
-    df = pd.DataFrame(parse_messages(decoded_string))
+    df = pd.DataFrame(parse_messages(decoded_textfile))
 
     flat_list = df['Message']
     word_list = stopwords.split(', ')
+
     lowercase_stopwords = [word.lower() for word in word_list]
-    print(lowercase_stopwords[:100])
+
     filtered_words = [word.lower() for word in get_words_from_messages(flat_list) if word not in lowercase_stopwords]
-    print(filtered_words[:100])
 
     str_ = ' '.join(filtered_words)
 
-    return Response(content=create_plot_image(str_.capitalize(), None, size=[32,16], max_words=1000, colors='YlOrRd'), media_type="application/json")
+    return Response(content=create_plot_image(str_.capitalize(), payload.imagefile64, size=[32,16], max_words=1000, colors='tab20c'), media_type="application/json")

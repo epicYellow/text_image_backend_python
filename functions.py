@@ -3,7 +3,9 @@ import io
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import tempfile
+from PIL import Image
 import base64
+import numpy as np
 
 def parse_messages(decoded_string):
     dates = []
@@ -42,7 +44,15 @@ def get_words_from_messages(flat_list):
     return message_words
 
 def create_plot_image(string, mask, size, max_words, colors):
-    word_cloud = WordCloud(background_color='white', max_words=max_words, colormap=colors)
+    icon = Image.open(io.BytesIO(base64.decodebytes(bytes(mask, "utf-8"))))
+    print('line 48: ', icon.size)
+    imageMask = Image.new(mode='RGB', size=icon.size, color=(255,255,255))
+    print('line 50: ', imageMask)
+    imageMask.paste(icon, box=icon)
+    rbg_array = np.array(imageMask)
+    print('line 53: ', rbg_array)
+
+    word_cloud = WordCloud(mask=rbg_array, background_color='white', max_words=max_words, colormap=colors)
     word_cloud.generate(string)
 
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
