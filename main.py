@@ -34,12 +34,16 @@ def read_root():
 @app.post("/api/createImage")
 async def create_image(payload: models.FileAndList):
     textfile_64 = base64.b64decode(payload.textfile64)
-    imagefile_64 = base64.b64decode(payload.imagefile64)
-    print('starting')
-
     decoded_textfile = textfile_64.decode("utf-8")
 
+    fontfile_64 = payload.fontfile64
+    print('received font 64 string: ', fontfile_64)
+    decoded_fontfile = base64.b64decode(fontfile_64)
+
+    print("line 42: ", decoded_fontfile)
+
     stopwords = payload.stopwords
+    gradient = payload.gradient
 
     df = pd.DataFrame(parse_messages(decoded_textfile))
 
@@ -52,4 +56,4 @@ async def create_image(payload: models.FileAndList):
 
     str_ = ' '.join(filtered_words)
 
-    return Response(content=create_plot_image(str_.capitalize(), payload.imagefile64, size=[32,16], max_words=1000, colors='tab20c'), media_type="application/json")
+    return Response(content=create_plot_image(str_.capitalize(), payload.imagefile64, size=[32,32], max_words=300, colors=gradient, font=decoded_fontfile), media_type="application/json")

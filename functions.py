@@ -43,17 +43,21 @@ def get_words_from_messages(flat_list):
             message_words.append(word.lower())
     return message_words
 
-def create_plot_image(string, mask, size, max_words, colors):
+def create_plot_image(string, mask, size, max_words, colors, font):
     icon = Image.open(io.BytesIO(base64.decodebytes(bytes(mask, "utf-8"))))
-    print('line 48: ', icon.size)
     imageMask = Image.new(mode='RGB', size=icon.size, color=(255,255,255))
-    print('line 50: ', imageMask)
+    print("line 49" , type(icon.size), icon.size)
     imageMask.paste(icon, box=icon)
     rbg_array = np.array(imageMask)
-    print('line 53: ', rbg_array)
 
-    word_cloud = WordCloud(mask=rbg_array, background_color='white', max_words=max_words, colormap=colors)
-    word_cloud.generate(string)
+    with tempfile.NamedTemporaryFile(delete=False) as temp_font:
+        temp_font.write(font)
+        temp_file_path = temp_font.name
+
+    print("font file: ", temp_file_path)
+
+    word_cloud = WordCloud(mask=rbg_array, background_color="rgba(255, 255, 255, 0)", mode="RGBA", max_words=max_words, colormap=colors, font_path=temp_file_path)
+    word_cloud.generate(string.upper())
 
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
         plt.figure(figsize=size)
@@ -61,6 +65,7 @@ def create_plot_image(string, mask, size, max_words, colors):
         plt.axis('off')
         plt.savefig(tmp_file.name, format='png')
 
+    temp_font.close()
     return encode_image_to_base64(tmp_file.name)
 
 def encode_image_to_base64(image_path):
