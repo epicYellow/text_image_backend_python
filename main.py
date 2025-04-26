@@ -1,5 +1,6 @@
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, UploadFile
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi import Response
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
@@ -8,15 +9,16 @@ from PIL import Image
 import models
 import io, base64
 import base64
+import re
 
 app = FastAPI()
 
 origins = [
-    "http://localhost.tiangolo.com",
-    "https://localhost.tiangolo.com",
     "http://localhost:3000",
+    "http://127.0.0.1:3000",
     "http://localhost",
-    "http://localhost:8000", 
+    "http://127.0.0.1",
+    "http://localhost:8000",
 ]
 
 app.add_middleware(
@@ -31,29 +33,27 @@ app.add_middleware(
 def read_root():
     return {"Hello": "World"}
 
-@app.post("/api/createImage")
-async def create_image(payload: models.FileAndList):
-    textfile_64 = base64.b64decode(payload.textfile64)
-    decoded_textfile = textfile_64.decode("utf-8")
+@app.post("/api/newWordCloud")
+async def get_word_cloud(text_file: UploadFile = File(...), image_file: UploadFile = File(...)):
+    filenames = [text_file.filename, image_file.filename]
+    print(f"Received file: {filenames}")
+    return {"filenames": filenames}
 
-    fontfile_64 = payload.fontfile64
-    print('received font 64 string: ', fontfile_64)
-    decoded_fontfile = base64.b64decode(fontfile_64)
+@app.post("/api/getTopHundredWords")
+async def get_top_hundred_words(text_file: UploadFile = File(...)):
+    lines = []
+    chatData= []
 
-    print("line 42: ", decoded_fontfile)
+    pattern = r'\[(\d{4}/\d{2}/\d{2}), (\d{2}:\d{2}:\d{2})\] (.+?): (.*)'
 
-    stopwords = payload.stopwords
-    gradient = payload.gradient
+    with open(text_file, 'r', encoding='utf-8') as file:
+        lines = file.readlines()
+        for line in lines:
+            match = re.match(pattern, line)
+            if match and 'https' not in line and 'omitted' not in line and 'missed' not in line:
+                date, time, name, message = match.groups()
+                chatData.append({'date': date, 'name': name, 'message': message})
 
-    df = pd.DataFrame(parse_messages(decoded_textfile))
 
-    flat_list = df['Message']
-    word_list = stopwords.split(', ')
-
-    lowercase_stopwords = [word.lower() for word in word_list]
-
-    filtered_words = [word.lower() for word in get_words_from_messages(flat_list) if word not in lowercase_stopwords]
-
-    str_ = ' '.join(filtered_words)
-
-    return Response(content=create_plot_image(str_.capitalize(), payload.imagefile64, size=[32,32], max_words=300, colors=gradient, font=decoded_fontfile), media_type="application/json")
+    json_compatible_item_data = jsonable_encoder(item)
+    return JSONResponse(content=json_compatible_item_data)
